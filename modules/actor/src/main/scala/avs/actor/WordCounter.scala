@@ -18,24 +18,28 @@ object WordCounter {
     } take 10
 
   def run(baseDir: File): Unit = {
+    if (baseDir.isDirectory) {
 
-    val actorSystem = ActorSystem("actor-wordcounter")
-    implicit val executionContext: ExecutionContext =
-      actorSystem.dispatcher
+      val actorSystem = ActorSystem("actor-wordcounter")
+      implicit val executionContext: ExecutionContext =
+        actorSystem.dispatcher
 
-    implicit val runTimeout: Timeout = Timeout(60.seconds)
+      implicit val runTimeout: Timeout = Timeout(60.seconds)
 
-    val aggregator =
-      actorSystem.actorOf(Props(new FileWordCountAggregator))
-    (aggregator ? FileWordCountAggregator.Commands.Run(baseDir))
-      .mapTo[Map[String, Long]]
-      .onComplete { result =>
-        result match {
-          case Failure(ex)     => ex.printStackTrace()
-          case Success(counts) => println(topTen(counts).mkString("\n"))
+      val aggregator =
+        actorSystem.actorOf(Props(new FileWordCountAggregator))
+      (aggregator ? FileWordCountAggregator.Commands.Run(baseDir))
+        .mapTo[Map[String, Long]]
+        .onComplete { result =>
+          result match {
+            case Failure(ex)     => ex.printStackTrace()
+            case Success(counts) => println(topTen(counts).mkString("\n"))
+          }
+          actorSystem.terminate()
         }
-        actorSystem.terminate()
-      }
+    } else {
+      System.err.println(s"${baseDir.getPath} is not a directory")
+    }
   }
 
 }

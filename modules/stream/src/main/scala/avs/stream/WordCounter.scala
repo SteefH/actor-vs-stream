@@ -45,24 +45,29 @@ object WordCounter {
     } take 10
 
   def run(baseDir: File): Unit = {
-    implicit val actorSystem: ActorSystem = ActorSystem("wordcounter")
-    implicit val materializer: ActorMaterializer = ActorMaterializer()
-    implicit val ec: ExecutionContext = actorSystem.dispatcher
+    if (baseDir.isDirectory) {
 
-    getFiles(baseDir)
-      .via(getLines)
-      .via(splitIntoWords)
-      .runFold(Map.empty[String, Long]) {
-        case (acc, word) =>
-          acc.increaseCount(word.toLowerCase)
-      }
-      .mapTo[Map[String, Long]]
-      .onComplete { result =>
-        result match {
-          case Failure(ex) => ex.printStackTrace()
-          case Success(s)  => println(topTen(s).mkString("\n"))
+      implicit val actorSystem: ActorSystem = ActorSystem("wordcounter")
+      implicit val materializer: ActorMaterializer = ActorMaterializer()
+      implicit val ec: ExecutionContext = actorSystem.dispatcher
+
+      getFiles(baseDir)
+        .via(getLines)
+        .via(splitIntoWords)
+        .runFold(Map.empty[String, Long]) {
+          case (acc, word) =>
+            acc.increaseCount(word.toLowerCase)
         }
-        actorSystem.terminate()
-      }
+        .mapTo[Map[String, Long]]
+        .onComplete { result =>
+          result match {
+            case Failure(ex) => ex.printStackTrace()
+            case Success(s)  => println(topTen(s).mkString("\n"))
+          }
+          actorSystem.terminate()
+        }
+    } else {
+      System.err.println(s"${baseDir.getPath} is not a directory")
+    }
   }
 }
